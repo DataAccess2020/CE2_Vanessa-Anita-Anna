@@ -2,6 +2,10 @@
 #Pay attention to the allow / disallow statements and the definition of user-agent. 
 #What do these lines mean?
 
+# 1. Check robots.txt
+url <- "https://www.beppegrillo.it/"
+browseURL(str_c(url, "robots.txt"))
+
 #User-agent: *
   #Disallow: /wp-admin/
   #Allow: /wp-admin/admin-ajax.php
