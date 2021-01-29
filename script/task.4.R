@@ -23,3 +23,16 @@ for(i in seq_along (link_url2)) {
   Sys.sleep(1)
 }
 
+
+#empty list of lists
+out <- vector(mode="list", length= 47)
+#c.) create a forloop to scrape the main text of the downloaded page
+for(i in seq_along(link_url2)) {
+  page <- read_html(x = here::here("download_grillo", str_c("page", i, ".html")))
+  nodes <- html_nodes(x=page, css = ".td-main-content")
+  out[[i]] <- html_text(x=nodes)
+}
+
+#what happens if a page contains no text?
+#we would find ""
+
