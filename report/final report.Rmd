@@ -1,0 +1,163 @@
+---
+title: 'Class Exercise #2'
+author: "Anita, Anna and Vanessa"
+date: "29/1/2021"
+output:
+  prettydoc::html_pretty:
+    theme: HPSTR 
+    highlight: github
+---
+
+## Setup libraries
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(stringr)
+library(rvest)
+library(httr)
+library(RCurl)
+```
+
+
+## Task 1
+*Inspect the robot.txt and describe what you can and what you should not do. Pay attention to the allow / disallow statements and the definition of user-agent. What do these lines mean?*
+
+```{r, results='asis'}
+url <- "https://www.beppegrillo.it/"
+browseURL(str_c(url, "robots.txt"))
+```
+
+User-agent: *  
+  Disallow: /wp-admin/  
+  Allow: /wp-admin/admin-ajax.php  
+
+The "User-agent: *" means that the following section applies to all robots.  
+The "/wp-admin/" directory is used to exclude all robots from this part of the server.   
+However, the "/wp-admin/admin-ajax.php" directory allows all robots to access to this specific part of that directory.
+
+
+## Task 2  
+*Check out the following link: http://www.beppegrillo.it/un-mare-di-plastica-ci-sommergera/. Download it using Rcurl::getURL() to download the page while informing the webmaster about your browser details and providing your email.*
+
+We assigned the URL to an object.
+```{r}
+url_plastic <- "http://www.beppegrillo.it/un-mare-di-plastica-ci-sommergera/"
+```
+
+We asked access to the html page specifying an e-mail address and the user agent. 
+```{r}
+plastic <- RCurl::getURL(url = url_plastic, httpheader = c(From = "vanessa.ferrara@studenti.unimi.it", 'User-Agent' = "R"))
+```
+
+Than, we downloaded the html page on our computer.
+```{r}
+download.file(url_plastic , destfile = ("plastic.html"))
+```
+
+## Task 3
+*Create a data frame with all the HTML links in the page. You can use rvest:: or check out the XML::getHTMLLinks function. Then, use a regex to keep only those links that re-direct to other posts of the beppegrillo.it blog (so remove all other links).*
+
+We created a page with all the http code.
+```{r}
+flat_page <- readr::read_lines(file = url_plastic)
+```
+
+We found the regular expression to match URLs.
+```{r}
+links_regex <- "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)"
+```
+
+We extracted the links.
+```{r}
+links <- str_extract_all(string = flat_page[], pattern = links_regex, simplify = TRUE)
+```
+
+We deleted all the spaces.
+```{r}
+links <- links[links != ""]
+```
+
+We deleted all the sites that are not from the blog 
+```{r}
+links_1 <- str_subset(links, 
+                    pattern = "^http://www.beppegrillo\\.it")
+```
+
+We created a data frame with all the links
+```{r}
+links_df <- tibble(links_1)
+```
+
+Finally, deleted all the duplicates and found the definitive data frame
+```{r}
+links_df_1<- links_df[!duplicated(links_df$links_1), ]
+```
+
+To create the URLs data frame, we had to use the kable function from knitr package.
+```{r}
+library(knitr)
+kable(links_df_1, caption="URLs")
+```
+
+## Task 4
+Check out the following link: http://www.beppegrillo.it/category/archivio/2016/. It contains the entire blog for 2016. There are 47 pages of entries. Scrape all the posts for 2016 following this strategy:  
+a. For each of the 47 pages, get all the links and place them into a list (or character vector)  
+b. For each link, download the files and sys.sleep() for few seconds  
+c. For each downloaded page, scrape the main text. Ask yourself what happens if a page contains no text.  
+We checked the robots.txt, that is the same as the original Url blog.
+Then, we put the url into the object url2
+```{r}
+url2 <- ("http://www.beppegrillo.it/category/archivio/2016/page/")
+```
+
+a. We created a character vector with all the 47 URLs.
+```{r}
+link_url2 <- str_c(url2, 1:47)
+```
+
+We created a new folder within our project.
+```{r}
+dir.create("download_grillo")
+```
+
+b. We downloaded the pages
+```{r, eval = FALSE}
+for(i in seq_along (link_url2)) {
+  download.file(url = link_url2[i], destfile = here::here("download_grillo", str_c("page", i, ".html")))
+  Sys.sleep(1)
+}
+```
+
+We created an empty list of lists
+```{r}
+out <- vector(mode="list", length= 47)
+```
+
+c. We created a for loop to scrape the main text of the downloaded pages
+```{r}
+for(i in seq_along(link_url2)) {
+  page <- read_html(x = here::here("download_grillo", str_c("page", i, ".html")))
+  nodes <- html_nodes(x=page, css = ".td-main-content")
+  out[[i]] <- html_text(x=nodes)
+}
+```
+
+What happens if a page contains no text?  
+We would find "".
+
+## Task 5
+*Check out the RCrawler package and its accompanying paper. What does it mean to “ crawl”? And what is it a “web spider”? How is this different from a scraper you have built at point 4? Inspect the package documentation and sketch how you could build a spider scraper: which function(s) should you use? With which arguments? Don't do it, just sketch and explain.*
+
+1. "Crawling" is a stricter word than scraping: it means pulling as many URLs as you can from a certain web server.   
+2. The web spider is an Internet bot that unables crawling.  
+3. The difference between crawling and scraping is that in crawling you only need a crawl agent (the web spider), whereas in scraping you also need a parser (like we did running the "read_html").  
+4. The function we would use is "LinkExtract()" from "Rcrawler". In this way we would have obtained all the URLs of the entire website. This function enables to: Fetch and parse a document by URL, to extract page info, HTML source and links (internal/external).   
+5. The arguments used would be:
+
+```{r, eval = FALSE}
+LinkExtractor(url = "http://www.beppegrillo.it", ExternalLInks = FALSE,
+              Useragent = "Chrome")
+```
+We are crawling from the URL "http://www.beppegrillo.it", we are not looking for external links (ExternalLinks = FALSE) and we are doing this process through Chrome. 
+
+
